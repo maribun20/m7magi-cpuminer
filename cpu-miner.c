@@ -109,7 +109,7 @@ enum algos {
 static const char *algo_names[] = {
 	[ALGO_SCRYPT]		= "scrypt",
 	[ALGO_SHA256D]		= "sha256d",
-	[ALGO_M7M]			= "m7mhash",
+	[ALGO_M7M]			= "m7m",
 };
 
 bool opt_debug = false;
@@ -175,6 +175,7 @@ Options:\n\
                           scrypt    scrypt(1024, 1, 1) (default)\n\
                           scrypt:N  scrypt(N, 1, 1)\n\
                           sha256d   SHA-256d\n\
+                          m7m       M7M (Magi)\n\
   -o, --url=URL         URL of mining server\n\
   -O, --userpass=U:P    username:password pair for mining server\n\
   -u, --user=USERNAME   username for mining server\n\
