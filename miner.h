@@ -122,92 +122,6 @@ static inline void le32enc(void *pp, uint32_t x)
 }
 #endif
 
-#if !HAVE_DECL_BE16DEC
-static inline uint16_t be16dec(const void *pp)
-{
-	const uint8_t *p = (uint8_t const *)pp;
-	return ((uint16_t)(p[1]) + ((uint16_t)(p[0]) << 8));
-}
-#endif
-
-#if !HAVE_DECL_LE16DEC
-static inline uint16_t le16dec(const void *pp)
-{
-	const uint8_t *p = (uint8_t const *)pp;
-	return ((uint16_t)(p[0]) + ((uint16_t)(p[1]) << 8));
-}
-#endif
-
-#if !HAVE_DECL_BE16ENC
-static inline void be16enc(void *pp, uint16_t x)
-{
-	uint8_t *p = (uint8_t *)pp;
-	p[1] = x & 0xff;
-	p[0] = (x >> 8) & 0xff;
-}
-#endif
-
-#if !HAVE_DECL_LE16ENC
-static inline void le16enc(void *pp, uint16_t x)
-{
-	uint8_t *p = (uint8_t *)pp;
-	p[0] = x & 0xff;
-	p[1] = (x >> 8) & 0xff;
-}
-#endif
-
-#if !HAVE_DECL_BE64DEC
-static inline uint64_t be64dec(const void *pp)
-{
-	const uint8_t *p = (uint8_t const *)pp;
-	return ((uint64_t)(p[7]) + ((uint64_t)(p[6]) << 8) +
-	    ((uint64_t)(p[5]) << 16) + ((uint64_t)(p[4]) << 24) +
-	    ((uint64_t)(p[3]) << 32) + ((uint64_t)(p[2]) << 40) +
-	    ((uint64_t)(p[1]) << 48) + ((uint64_t)(p[0]) << 56));
-}
-#endif
-
-#if !HAVE_DECL_LE64DEC
-static inline uint64_t le64dec(const void *pp)
-{
-	const uint8_t *p = (uint8_t const *)pp;
-	return ((uint64_t)(p[0]) + ((uint64_t)(p[1]) << 8) +
-	    ((uint64_t)(p[2]) << 16) + ((uint64_t)(p[3]) << 24) +
-	    ((uint64_t)(p[4]) << 32) + ((uint64_t)(p[5]) << 40) +
-	    ((uint64_t)(p[6]) << 48) + ((uint64_t)(p[7]) << 56));
-}
-#endif
-
-#if !HAVE_DECL_BE64ENC
-static inline void be64enc(void *pp, uint64_t x)
-{
-	uint8_t *p = (uint8_t *)pp;
-	p[7] = x & 0xff;
-	p[6] = (x >> 8) & 0xff;
-	p[5] = (x >> 16) & 0xff;
-	p[4] = (x >> 24) & 0xff;
-	p[3] = (x >> 32) & 0xff;
-	p[2] = (x >> 40) & 0xff;
-	p[1] = (x >> 48) & 0xff;
-	p[0] = (x >> 56) & 0xff;
-}
-#endif
-
-#if !HAVE_DECL_LE64ENC
-static inline void le64enc(void *pp, uint64_t x)
-{
-	uint8_t *p = (uint8_t *)pp;
-	p[0] = x & 0xff;
-	p[1] = (x >> 8) & 0xff;
-	p[2] = (x >> 16) & 0xff;
-	p[3] = (x >> 24) & 0xff;
-	p[4] = (x >> 32) & 0xff;
-	p[5] = (x >> 40) & 0xff;
-	p[6] = (x >> 48) & 0xff;
-	p[7] = (x >> 56) & 0xff;
-}
-#endif
-
 #if JANSSON_MAJOR_VERSION >= 2
 #define JSON_LOADS(str, err_ptr) json_loads(str, 0, err_ptr)
 #define JSON_LOAD_FILE(path, err_ptr) json_load_file(path, 0, err_ptr)
@@ -216,7 +130,7 @@ static inline void le64enc(void *pp, uint64_t x)
 #define JSON_LOAD_FILE(path, err_ptr) json_load_file(path, err_ptr)
 #endif
 
-#define USER_AGENT PACKAGE_NAME "/" PACKAGE_VERSION "-xcn"
+#define USER_AGENT PACKAGE_NAME "/" PACKAGE_VERSION "-m7m"
 
 void sha256_init(uint32_t *state);
 void sha256_transform(uint32_t *state, const uint32_t *block, int swap);
@@ -245,7 +159,7 @@ extern int scanhash_scrypt(int thr_id, uint32_t *pdata,
 	unsigned char *scratchbuf, const uint32_t *ptarget,
 	uint32_t max_nonce, unsigned long *hashes_done, int N);
 
-int scanhash_m7hash(int thr_id, uint32_t *pdata, const uint32_t *ptarget,
+int scanhash_m7m_hash(int thr_id, uint32_t *pdata, const uint32_t *ptarget,
     uint64_t max_nonce, unsigned long *hashes_done);
 
 struct thr_info {
@@ -259,13 +173,6 @@ struct work_restart {
 	char			padding[128 - sizeof(unsigned long)];
 };
 
-enum algos {
-	ALGO_SCRYPT,		/* scrypt(1024,1,1) */
-	ALGO_SHA256D,		/* SHA-256d */
-	ALGO_M7,			/* M7: SHA-256(SHA-256(h)*SHA-512(h)*Keccak(h)*Ripemd(h)*Haval(h)*Tiger(h)*Whirlpool(h)) */
-};
-
-extern enum algos opt_algo;
 extern bool opt_debug;
 extern bool opt_protocol;
 extern bool opt_redirect;
@@ -304,7 +211,6 @@ extern void diff_to_target(uint32_t *target, double diff);
 
 struct stratum_job {
 	char *job_id;
-
 	unsigned char prevhash[32];
 	size_t coinbase_size;
 	unsigned char *coinbase;
@@ -316,13 +222,6 @@ struct stratum_job {
 	unsigned char ntime[4];
 	bool clean;
 	double diff;
-
-	unsigned char m7prevblock[32];
-	unsigned char m7accroot[32];
-	unsigned char m7merkleroot[32];
-	unsigned char m7height[8];
-	unsigned char m7ntime[8];
-	unsigned char m7version[2];
 };
 
 struct stratum_ctx {

@@ -28,7 +28,7 @@ AC_CHECK_HEADERS([sys/sysctl.h], [], [],
 #endif
 ])
 
-AC_CHECK_DECLS([be16dec, le16dec, be16enc, le16enc, be32dec, le32dec, be32enc, le32enc, be64dec, le64dec, be64enc, le64enc], [], [],
+AC_CHECK_DECLS([be32dec, le32dec, be32enc, le32enc], [], [],
 [AC_INCLUDES_DEFAULT
 #ifdef HAVE_SYS_ENDIAN_H
 #include <sys/endian.h>
@@ -120,7 +120,7 @@ else
 	JANSSON_LIBS=-ljansson
 fi
 
-M7_LIBS="m7/libm7.a"
+M7M_LIBS="m7/libm7m.a"
 
 LIBCURL_CHECK_CONFIG(, 7.15.2, ,
   [AC_MSG_ERROR([Missing required libcurl >= 7.15.2])])
@@ -129,12 +129,12 @@ AC_SUBST(JANSSON_LIBS)
 AC_SUBST(PTHREAD_FLAGS)
 AC_SUBST(PTHREAD_LIBS)
 AC_SUBST(WS2_LIBS)
-AC_SUBST(M7_LIBS)
+AC_SUBST(M7M_LIBS)
 
 AC_CONFIG_FILES([
 	Makefile
 	compat/Makefile
-  compat/jansson/Makefile
-	m7/Makefile
+	compat/jansson/Makefile
+    m7/Makefile
 	])
 AC_OUTPUT

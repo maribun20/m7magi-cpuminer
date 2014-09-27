@@ -1088,6 +1088,10 @@ start:
 		applog(LOG_ERR, "Failed to get extranonce2_size");
 		goto out;
 	}
+	if (xn2_size < 0 || xn2_size > 100) {
+		applog(LOG_ERR, "Invalid value of extranonce2_size");
+		goto out;
+	}
 
 	pthread_mutex_lock(&sctx->work_lock);
 	free(sctx->session_id);
@@ -1167,55 +1171,6 @@ out:
 		json_decref(val);
 
 	return ret;
-}
-
-static bool stratum_notify_m7(struct stratum_ctx *sctx, json_t *params)
-{
-	const char *job_id, *prevblock, *accroot, *merkleroot, *version, *ntime;
-	int height;
-	bool clean;
-
-	job_id = json_string_value(json_array_get(params, 0));
-	prevblock = json_string_value(json_array_get(params, 1));
-	accroot = json_string_value(json_array_get(params, 2));
-	merkleroot = json_string_value(json_array_get(params, 3));
-	height = json_integer_value(json_array_get(params, 4));
-	version = json_string_value(json_array_get(params, 5));
-	ntime = json_string_value(json_array_get(params, 6));
-	clean = json_is_true(json_array_get(params, 7));
-
-	if (!job_id || !prevblock || !accroot || !merkleroot || 
-		!version || !height || !ntime ||
-		strlen(prevblock) != 32*2 || 
-		strlen(accroot) != 32*2 || 
-		strlen(merkleroot) != 32*2 || 
-		strlen(ntime) != 8*2 || strlen(version) != 2*2) {
-		applog(LOG_ERR, "Stratum (M7) notify: invalid parameters");
-		return false;
-	}
-
-	pthread_mutex_lock(&sctx->work_lock);
-
-	if (!sctx->job.job_id || strcmp(sctx->job.job_id, job_id)) {
-		sctx->job.xnonce2 = realloc(sctx->job.xnonce2, sctx->xnonce2_size);
-		memset(sctx->job.xnonce2, 0, sctx->xnonce2_size);
-	}
-	free(sctx->job.job_id);
-	sctx->job.job_id = strdup(job_id);
-
-	hex2bin(sctx->job.m7prevblock, prevblock, 32);
-	hex2bin(sctx->job.m7accroot, accroot, 32);
-	hex2bin(sctx->job.m7merkleroot, merkleroot, 32);
-	be64enc(sctx->job.m7height, height);
-	hex2bin(sctx->job.m7version, version, 2);
-	hex2bin(sctx->job.m7ntime, ntime, 8);
-	sctx->job.clean = clean;
-
-	sctx->job.diff = sctx->next_diff;
-
-	pthread_mutex_unlock(&sctx->work_lock);
-
-	return true;
 }
 
 static bool stratum_notify(struct stratum_ctx *sctx, json_t *params)
@@ -1417,11 +1372,7 @@ bool stratum_handle_method(struct stratum_ctx *sctx, const char *s)
 	params = json_object_get(val, "params");
 
 	if (!strcasecmp(method, "mining.notify")) {
-		if (opt_algo == ALGO_M7) {
-			ret = stratum_notify_m7(sctx, params);
-		} else {
-			ret = stratum_notify(sctx, params);
-		}
+		ret = stratum_notify(sctx, params);
 		goto out;
 	}
 	if (!strcasecmp(method, "mining.set_difficulty")) {
