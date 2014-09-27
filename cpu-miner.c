@@ -1118,10 +1118,20 @@ static void stratum_gen_work_m7(struct stratum_ctx *sctx, struct work *work)
 	}
 	work->data16[60] = be16dec(sctx->job.m7version);
 
+	if (opt_debug) {
+		uint64_t height = be64dec(sctx->job.m7height);
+		uint64_t ntime = be64dec(sctx->job.m7ntime);
+		char *xnonce2str = abin2hex(work->xnonce2, sctx->xnonce2_size);
+		applog(LOG_DEBUG, "DEBUG: job_id='%s' sz=%lu xnonce2=%s ntime=%08llx height=%lld",
+			work->job_id, sctx->xnonce2_size, xnonce2str, ntime, height);
+		free(xnonce2str);
+	}
+
 	pthread_mutex_unlock(&sctx->work_lock);
 
 	diff_to_target(work->target, sctx->job.diff / 65536.0);
 
+#if 0
 	if (opt_debug) {
 		char data_str[245], target_str[65];
 		bin2hex(data_str, (unsigned char *)work->data, 122);
@@ -1129,6 +1139,7 @@ static void stratum_gen_work_m7(struct stratum_ctx *sctx, struct work *work)
 		bin2hex(target_str, (unsigned char *)work->target, 32);
 		applog(LOG_DEBUG, "DEBUG: stratum_gen_work target %s", target_str);
 	}
+#endif
 }
 
 static void *miner_thread(void *userdata)
@@ -1521,6 +1532,8 @@ static void *stratum_thread(void *userdata)
 			applog(LOG_ERR, "Stratum connection interrupted");
 			continue;
 		}
+		if (opt_debug)
+			applog(LOG_DEBUG, "stratum_handle_method %s", s);
 		if (!stratum_handle_method(&stratum, s))
 			stratum_handle_response(s);
 		free(s);
