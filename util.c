@@ -79,7 +79,14 @@ void applog(int prio, const char *fmt, ...)
 		va_list ap2;
 		char *buf;
 		int len;
-		
+
+		/* custom colors to syslog prio */
+		if (prio > LOG_DEBUG) {
+			switch (prio) {
+				case LOG_BLUE: prio = LOG_NOTICE; break;
+			}
+		}
+
 		va_copy(ap2, ap);
 		len = vsnprintf(NULL, 0, fmt, ap2) + 1;
 		va_end(ap2);
@@ -91,6 +98,7 @@ void applog(int prio, const char *fmt, ...)
 	if (0) {}
 #endif
 	else {
+		const char* color = "";
 		char *f;
 		int len;
 		time_t now;
@@ -103,16 +111,34 @@ void applog(int prio, const char *fmt, ...)
 		memcpy(&tm, tm_p, sizeof(tm));
 		pthread_mutex_unlock(&applog_lock);
 
+		switch (prio) {
+			case LOG_ERR:     color = CL_RED; break;
+			case LOG_WARNING: color = CL_YLW; break;
+			case LOG_NOTICE:  color = CL_WHT; break;
+			case LOG_INFO:    color = ""; break;
+			case LOG_DEBUG:   color = ""; break;
+			case LOG_BLUE:
+				prio = LOG_NOTICE;
+				color = CL_CYN;
+				break;
+		}
+
+		if (!use_colors)
+			color = "";
+
 		len = 40 + strlen(fmt) + 2;
 		f = alloca(len);
-		sprintf(f, "[%d-%02d-%02d %02d:%02d:%02d] %s\n",
+		sprintf(f, "[%d-%02d-%02d %02d:%02d:%02d]%s %s%s\n",
 			tm.tm_year + 1900,
 			tm.tm_mon + 1,
 			tm.tm_mday,
 			tm.tm_hour,
 			tm.tm_min,
 			tm.tm_sec,
-			fmt);
+			color,
+			fmt,
+			use_colors ? CL_N : ""
+		);
 		pthread_mutex_lock(&applog_lock);
 		vfprintf(stderr, f, ap);	/* atomic write to stderr */
 		fflush(stderr);
@@ -1510,4 +1536,44 @@ pop:
 out:
 	pthread_mutex_unlock(&tq->mutex);
 	return rval;
+}
+
+/* sprintf can be used in applog */
+static char* format_hash(char* buf, uint8_t *hash)
+{
+	int len = 0;
+	for (int i=0; i < 32; i += 4) {
+		len += sprintf(buf+len, "%02x%02x%02x%02x ",
+			hash[i], hash[i+1], hash[i+2], hash[i+3]);
+	}
+	return buf;
+}
+
+void applog_hash(void *hash)
+{
+	char s[128] = {'\0'};
+	applog(LOG_DEBUG, "%s", format_hash(s, hash));
+}
+
+#define printpfx(n,h) \
+	printf("%s%12s%s: %s\n", CL_BLU, n, CL_N, format_hash(s, (uint8_t*) h))
+
+void print_hash_tests(void)
+{
+	char* buf[128], hash[128], s[80];
+	memset(buf, 0, sizeof buf);
+
+	printf("\n" CL_WHT "CPU HASH ON EMPTY BUFFER RESULTS:" CL_N " (dev purpose)\n\n");
+
+	memset(hash, 0, sizeof hash);
+	sha256d((uint8_t*) &hash[0], (uint8_t*)&buf[0], 64);
+	printpfx("SHA 256D", hash);
+
+	memset(hash, 0, sizeof hash);
+	m7hash(&hash[0], &buf[0]);
+	printpfx("M7", hash);
+
+	memset(hash, 0, sizeof hash);
+	m7mhash(&hash[0], &buf[0]);
+	printpfx("M7M", hash);
 }

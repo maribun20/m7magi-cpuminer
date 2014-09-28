@@ -14,16 +14,8 @@
 #include <sph_whirlpool.h>
 #include <sph_ripemd.h>
 
-static void mpz_set_uint256(mpz_t r, uint8_t *u)
-{
-    mpz_import(r, 32 / sizeof(unsigned long), -1, sizeof(unsigned long), -1, 0, u);
-}
-
-static void mpz_get_uint256(mpz_t r, uint8_t *u)
-{
-    u=0;
-    mpz_export(u, 0, -1, sizeof(unsigned long), -1, 0, r);
-}
+static bool cputest = false;
+static uint32_t* hashtest = NULL;
 
 static void mpz_set_uint512(mpz_t r, uint8_t *u)
 {
@@ -57,14 +49,13 @@ static bool fulltest_m7hash(const uint32_t *hash32, const uint32_t *target32)
 }
 
 #define M7_MIDSTATE_LEN 116
-int scanhash_m7hash(int thr_id, uint32_t *pdata, const uint32_t *ptarget,
+int scanhash_m7_hash(int thr_id, uint32_t *pdata, const uint32_t *ptarget,
     uint64_t max_nonce, unsigned long *hashes_done)
 {
     uint32_t data[32] __attribute__((aligned(128)));
     uint32_t *data_p64 = data + (M7_MIDSTATE_LEN / sizeof(data[0]));
     uint32_t hash[8] __attribute__((aligned(32)));
     uint8_t bhash[7][64] __attribute__((aligned(32)));
-    uint32_t hashtest[8] __attribute__((aligned(32)));
     uint32_t n = pdata[29] - 1;
     const uint32_t first_nonce = pdata[29];
     char data_str[245], hash_str[65], target_str[65];
@@ -119,6 +110,11 @@ int scanhash_m7hash(int thr_id, uint32_t *pdata, const uint32_t *ptarget,
 
     do {
         data[29] = ++n;
+
+        if (cputest) {
+            data[29] = 0;
+            hashtest = hash;
+        }
 
         memset(bhash, 0, 7 * 64);
 
@@ -197,5 +193,13 @@ out:
     return rc;
 }
 
-
-
+void m7hash(void *output, const void *input)
+{
+    uint32_t target[32] = { 0 };
+    unsigned long hashes_done = 0;
+    cputest = true;
+    scanhash_m7_hash(0, (uint32_t*) input, target, 0, &hashes_done);
+    if (hashtest && hashes_done == 1)
+        memcpy(output, hashtest, 32);
+    cputest = false;
+}

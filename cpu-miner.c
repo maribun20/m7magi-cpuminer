@@ -123,6 +123,7 @@ bool allow_getwork = true;
 bool want_stratum = true;
 bool have_stratum = false;
 bool use_syslog = false;
+bool use_colors = true;
 static bool opt_background = false;
 static bool opt_quiet = false;
 static int opt_retries = -1;
@@ -196,6 +197,7 @@ Options:\n\
       --no-gbt          disable getblocktemplate support\n\
       --no-stratum      disable X-Stratum support\n\
       --no-redirect     ignore requests to change the URL of the mining server\n\
+  -K, --no-color        disable colored output\n\
   -q, --quiet           disable per-thread hashmeter output\n\
   -D, --debug           enable debug output\n\
   -P, --protocol-dump   verbose dump of protocol-level activities\n"
@@ -209,6 +211,7 @@ Options:\n\
 #endif
 "\
       --benchmark       run in offline benchmark mode\n\
+      --cputest         debug hashes from cpu algorithms\n\
   -c, --config=FILE     load a JSON-format configuration file\n\
   -V, --version         display version information and exit\n\
   -h, --help            display this help text and exit\n\
@@ -221,7 +224,7 @@ static char const short_options[] =
 #ifdef HAVE_SYSLOG_H
 	"S"
 #endif
-	"a:c:Dhp:Px:qr:R:s:t:T:o:u:O:V";
+	"a:c:CKDhp:Px:qr:R:s:t:T:o:u:O:V";
 
 static struct option const options[] = {
 	{ "algo", 1, NULL, 'a' },
@@ -229,12 +232,15 @@ static struct option const options[] = {
 	{ "background", 0, NULL, 'B' },
 #endif
 	{ "benchmark", 0, NULL, 1005 },
+	{ "cputest", 0, NULL, 1006 },
 	{ "cert", 1, NULL, 1001 },
 	{ "coinbase-addr", 1, NULL, 1013 },
 	{ "coinbase-sig", 1, NULL, 1015 },
 	{ "config", 1, NULL, 'c' },
+	{ "color", 0, NULL, 'C' },
 	{ "debug", 0, NULL, 'D' },
 	{ "help", 0, NULL, 'h' },
+	{ "no-color", 0, NULL, 'K' },
 	{ "no-gbt", 0, NULL, 1011 },
 	{ "no-getwork", 0, NULL, 1010 },
 	{ "no-longpoll", 0, NULL, 1003 },
@@ -639,12 +645,14 @@ static void share_result(int result, const char *reason)
 	pthread_mutex_unlock(&stats_lock);
 	
 	sprintf(s, hashrate >= 1e6 ? "%.0f" : "%.2f", 1e-3 * hashrate);
-	applog(LOG_INFO, "accepted: %lu/%lu (%.2f%%), %s khash/s %s",
+	applog(LOG_NOTICE, "accepted: %lu/%lu (%.2f%%), %s khash/s %s",
 		   accepted_count,
 		   accepted_count + rejected_count,
 		   100. * accepted_count / (accepted_count + rejected_count),
 		   s,
-		   result ? "(yay!!!)" : "(booooo)");
+		   use_colors ?
+				(result ? CL_GRN "yay!" : CL_RED "booooo")
+				: (result ? "(yay!!!)" : "(booooo)"));
 
 	if (opt_debug && reason)
 		applog(LOG_DEBUG, "DEBUG: reject reason: %s", reason);
@@ -1432,7 +1440,7 @@ static void *stratum_thread(void *userdata)
 			time(&g_work_time);
 			pthread_mutex_unlock(&g_work_lock);
 			if (stratum.job.clean) {
-				applog(LOG_INFO, "Stratum requested work restart");
+				applog(LOG_BLUE, "Stratum requested work restart");
 				restart_threads();
 			}
 		}
@@ -1568,11 +1576,17 @@ static void parse_arg(int key, char *arg, char *pname)
 		json_decref(config);
 		break;
 	}
+	case 'C':
+		use_colors = true;
+		break;
 	case 'q':
 		opt_quiet = true;
 		break;
 	case 'D':
 		opt_debug = true;
+		break;
+	case 'K':
+		use_colors = false;
 		break;
 	case 'p':
 		free(rpc_pass);
@@ -1713,6 +1727,9 @@ static void parse_arg(int key, char *arg, char *pname)
 	case 1003:
 		want_longpoll = false;
 		break;
+	case 1006:
+		print_hash_tests();
+		exit(0);
 	case 1007:
 		want_stratum = false;
 		break;
@@ -1742,6 +1759,7 @@ static void parse_arg(int key, char *arg, char *pname)
 		break;
 	case 'S':
 		use_syslog = true;
+		use_colors = false;
 		break;
 	case 'V':
 		show_version_and_exit();
@@ -1750,6 +1768,10 @@ static void parse_arg(int key, char *arg, char *pname)
 	default:
 		show_usage_and_exit(1);
 	}
+#ifdef WIN32
+		/* require winansi color addon */
+		use_colors = false;
+#endif
 }
 
 static void parse_config(json_t *config, char *pname, char *ref)

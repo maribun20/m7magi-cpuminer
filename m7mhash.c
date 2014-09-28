@@ -14,15 +14,12 @@
 #include <sph_whirlpool.h>
 #include <sph_ripemd.h>
 
+static bool cputest = false;
+static uint32_t* hashtest = NULL;
+
 static void mpz_set_uint256(mpz_t r, uint8_t *u)
 {
     mpz_import(r, 32 / sizeof(unsigned long), -1, sizeof(unsigned long), -1, 0, u);
-}
-
-static void mpz_get_uint256(mpz_t r, uint8_t *u)
-{
-    u=0;
-    mpz_export(u, 0, -1, sizeof(unsigned long), -1, 0, r);
 }
 
 static void mpz_set_uint512(mpz_t r, uint8_t *u)
@@ -123,6 +120,11 @@ int scanhash_m7m_hash(int thr_id, uint32_t *pdata, const uint32_t *ptarget,
     do {
         data[19] = ++n;
 
+        if (cputest) {
+            data[29] = 0;
+            hashtest = hash;
+        }
+
         memset(bhash, 0, 7 * 64);
 
         ctx2_sha256 = ctx_sha256;
@@ -161,7 +163,7 @@ int scanhash_m7m_hash(int thr_id, uint32_t *pdata, const uint32_t *ptarget,
         mpz_set_ui(bns[7],0);
 
         for(int i=0; i < 7; i++){
-	        mpz_add(bns[7], bns[7], bns[i]);
+            mpz_add(bns[7], bns[7], bns[i]);
         }
 
         mpz_set_ui(product,1);
@@ -218,7 +220,7 @@ int scanhash_m7m_hash(int thr_id, uint32_t *pdata, const uint32_t *ptarget,
     pdata[19] = n;
 
 out:
-    for(int i=0; i < 8; i++){
+    for(int i=0; i < 8; i++) {
         mpz_clear(bns[i]);
     }
     mpz_clear(product);
@@ -228,5 +230,13 @@ out:
     return rc;
 }
 
-
-
+void m7mhash(void *output, const void *input)
+{
+    uint32_t target[32] = { 0 };
+    unsigned long hashes_done = 0;
+    cputest = true;
+    scanhash_m7m_hash(0, (uint32_t*) input, target, 0, &hashes_done);
+    if (hashtest && hashes_done == 1)
+        memcpy(output, hashtest, 32);
+    cputest = false;
+}
