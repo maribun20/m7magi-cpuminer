@@ -5,11 +5,7 @@
 #define MAGI_MATH_H
 
 #include <math.h>
-//inline double exp_n(double xt);
-//inline double exp_n2(double x1, double x2);
-void gauleg(double x1, double x2, double x[], double w[], int n);
-double GaussianQuad_N(double func(const double), const double a2, const double b2, int NptGQ);
-double swit_(double wvnmb);
+
 #ifdef __cplusplus
 extern "C" {
 #endif
