@@ -85,6 +85,8 @@ static inline uint32_t swab32(uint32_t v)
 #include <sys/endian.h>
 #endif
 
+typedef unsigned char uchar;
+
 #if !HAVE_DECL_BE32DEC
 static inline uint32_t be32dec(const void *pp)
 {
@@ -167,10 +169,32 @@ int scanhash_m7_hash(int thr_id, uint32_t *pdata, const uint32_t *ptarget,
 int scanhash_m7m_hash(int thr_id, uint32_t *pdata, const uint32_t *ptarget,
     uint64_t max_nonce, unsigned long *hashes_done);
 
+/* api related */
+void *api_thread(void *userdata);
+
+struct cpu_info {
+	int thr_id;
+	int accepted;
+	int rejected;
+	double khashes;
+	bool has_monitoring;
+	float cpu_temp;
+	int cpu_fan;
+	uint32_t cpu_clock;
+};
+
+struct thr_api {
+	int id;
+	pthread_t pth;
+	struct thread_q	*q;
+};
+/* end of api */
+
 struct thr_info {
 	int		id;
 	pthread_t	pth;
 	struct thread_q	*q;
+	struct cpu_info cpu;
 };
 
 struct work_restart {
@@ -180,6 +204,7 @@ struct work_restart {
 
 extern bool opt_debug;
 extern bool opt_protocol;
+extern bool opt_quiet;
 extern bool opt_redirect;
 extern int opt_timeout;
 extern bool want_longpoll;
@@ -197,7 +222,12 @@ extern pthread_mutex_t applog_lock;
 extern struct thr_info *thr_info;
 extern int longpoll_thr_id;
 extern int stratum_thr_id;
+extern int api_thr_id;
 extern struct work_restart *work_restart;
+
+extern uint32_t opt_work_size;
+extern uint64_t global_hashrate;
+extern double   global_diff;
 
 #define JSON_RPC_LONGPOLL	(1 << 0)
 #define JSON_RPC_QUIET_404	(1 << 1)
@@ -241,6 +271,7 @@ extern int timeval_subtract(struct timeval *result, struct timeval *x,
 	struct timeval *y);
 extern bool fulltest(const uint32_t *hash, const uint32_t *target);
 extern void diff_to_target(uint32_t *target, double diff);
+extern void get_currentalgo(char* buf, int sz);
 
 struct stratum_job {
 	char *job_id;
