@@ -162,7 +162,7 @@ uint64_t global_hashrate = 0;
 double   global_diff = 0.0;
 int opt_intensity = 0;
 uint32_t opt_work_size = 0; /* default */
-char *opt_api_allow = "127.0.0.1"; /* 0.0.0.0 for all ips */
+char *opt_api_allow = NULL;
 int opt_api_listen = 4048; /* 0 to disable */
 
 #ifdef HAVE_GETOPT_LONG
@@ -1547,7 +1547,7 @@ static void parse_config(json_t *config, char *pname, char *ref);
 
 static void parse_arg(int key, char *arg, char *pname)
 {
-	char *p;
+	char *p = arg;
 	int v, i;
 
 	switch(key) {
@@ -1581,13 +1581,21 @@ static void parse_arg(int key, char *arg, char *pname)
 		if (p) {
 			/* ip:port */
 			if (p - arg > 0) {
+				free(opt_api_allow);
 				opt_api_allow = strdup(arg);
 				opt_api_allow[p - arg] = '\0';
 			}
 			opt_api_listen = atoi(p + 1);
 		}
-		else if (arg)
+		else if (arg && strstr(arg, ".")) {
+			/* ip only */
+			free(opt_api_allow);
+			opt_api_allow = strdup(arg);
+		}
+		else if (arg) {
+			/* port or 0 to disable */
 			opt_api_listen = atoi(arg);
+		}
 		break;
 	case 'B':
 		opt_background = true;
@@ -1889,6 +1897,7 @@ int main(int argc, char *argv[])
 
 	rpc_user = strdup("");
 	rpc_pass = strdup("");
+	opt_api_allow = strdup("127.0.0.1"); /* 0.0.0.0 for all ips */
 
 	/* parse command line */
 	parse_cmdline(argc, argv);
